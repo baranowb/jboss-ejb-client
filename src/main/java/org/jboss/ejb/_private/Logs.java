@@ -332,6 +332,10 @@ public interface Logs extends BasicLogger {
     @Message(id = 81, value = "Failed to instantiate cluster node selector class \"%s\"")
     IllegalArgumentException cannotInstantiateClustertNodeSelector(String name, @Cause ReflectiveOperationException e);
 
+    @LogMessage
+    @Message(id = 82, value = "Overriding classloader context with legacy configuration.")
+    void overridingClassLoaderDefaultContextWithLegacy();
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")

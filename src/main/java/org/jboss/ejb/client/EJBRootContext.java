@@ -18,11 +18,11 @@
 
 package org.jboss.ejb.client;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import javax.naming.Binding;
@@ -32,6 +32,7 @@ import javax.naming.NamingException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
+import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
 import org.wildfly.naming.client.AbstractContext;
 import org.wildfly.naming.client.CloseableNamingEnumeration;
 import org.wildfly.naming.client.NamingProvider;
@@ -153,6 +154,7 @@ class EJBRootContext extends AbstractContext {
         final EJBIdentifier identifier = new EJBIdentifier(moduleIdentifier, beanName);
         final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, baseAffinity.get());
         final Object proxy;
+        setupEJBClientContextProviderProperties(namingProvider);
         if (stateful) {
             try {
                 proxy = EJBClient.createSessionProxy(statelessLocator, providerEnvironment.getAuthenticationContextSupplier(), namingProvider);
@@ -175,6 +177,30 @@ class EJBRootContext extends AbstractContext {
         }
 
         return proxy;
+    }
+
+    private void setupEJBClientContextProviderProperties(NamingProvider namingProvider) {
+
+        final Map<String, ?> environment = namingProvider.getProviderEnvironment().getProperties();
+        if (environment == null || !LegacyPropertiesConfiguration.containsLegacy(environment)) {
+            return;
+        }
+
+        ClassLoader classLoader = getContextClassLoader();
+        EJBClientContext context = EJBClientContext.getContextManager().getClassLoaderDefault(classLoader);
+        if (context != null) {
+            Logs.MAIN.overridingClassLoaderDefaultContextWithLegacy();
+        }
+        
+        final Properties properties = new Properties();
+        properties.putAll(environment);
+        final JBossEJBProperties ejbProps = JBossEJBProperties.fromProperties("I cant be null....", properties);
+        //JBossEJBProperties.getContextManager().setGlobalDefault(ejbProps);
+        final EJBClientContext customContext = EJBClientContext.getDefaultWithProperties(ejbProps);
+        //TODO: globalDefault?
+        //EJBClientContext.getContextManager().setGlobalDefault(builder.build());
+        EJBClientContext.getContextManager().setClassLoaderDefault(classLoader, customContext);
+        
     }
 
     private static ClassLoader getContextClassLoader(){

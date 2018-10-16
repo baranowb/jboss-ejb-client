@@ -19,9 +19,12 @@
 package org.jboss.ejb.client.legacy;
 
 import java.net.URI;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.ClusterNodeSelector;
@@ -40,6 +43,11 @@ public class LegacyPropertiesConfiguration {
 
     public static void configure(final EJBClientContext.Builder builder) {
         final JBossEJBProperties properties = JBossEJBProperties.getCurrent();
+        configure(builder, properties);
+    }
+
+    public static void configure(final EJBClientContext.Builder builder, final JBossEJBProperties properties) {
+        
         if (properties != null) {
             Logs.MAIN.legacyEJBPropertiesEJBConfigurationInUse();
 
@@ -94,5 +102,30 @@ public class LegacyPropertiesConfiguration {
                 builder.setInvocationTimeout(properties.getInvocationTimeout());
             }
         }
+    }
+
+    private static final Set<String> LEGACY_KEYS;
+    static {
+        HashSet<String> tmp = new HashSet<>();
+        tmp.add("remote.connection"); 
+        tmp.add("remote.cluster"); 
+        tmp.add("endpoint.name");
+        tmp.add("deployment.node.selector"); 
+        tmp.add("invocation.timeout");
+        tmp.add("reconnect.tasks.timeout"); 
+        tmp.add("deployment.node.selector");
+        LEGACY_KEYS = Collections.unmodifiableSet(tmp);
+    }
+    /**
+     * Check if properties contain legacy config options.
+     * @param properties
+     * @return
+     */
+    public static boolean containsLegacy(Map<String, ?> properties) {
+        return properties.keySet().stream().anyMatch(key -> {
+            return LEGACY_KEYS.stream().anyMatch(legacyKey -> {
+                return key.contains(legacyKey);
+            });
+        });
     }
 }

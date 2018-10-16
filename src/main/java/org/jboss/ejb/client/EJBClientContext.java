@@ -44,6 +44,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.protocol.remote.RemotingEJBClientInterceptor;
 import org.wildfly.common.Assert;
 import org.wildfly.common.context.ContextManager;
@@ -106,6 +107,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     static EJBClientContext getDefault() {
         return ConfigurationBasedEJBClientContextSelector.get();
+    }
+
+    static EJBClientContext getDefaultWithProperties(final JBossEJBProperties properties) {
+        return ConfigurationBasedEJBClientContextSelector.get(properties);
     }
 
     private final EJBTransportProvider[] transportProviders;

@@ -28,6 +28,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
@@ -54,8 +55,12 @@ final class ConfigurationBasedEJBClientContextSelector {
 
     private ConfigurationBasedEJBClientContextSelector() {
     }
-
+    
     private static EJBClientContext loadConfiguration() {
+        return loadConfiguration(null);
+    }
+
+    private static EJBClientContext loadConfiguration(final JBossEJBProperties properties) {
         final ClientConfiguration clientConfiguration = ClientConfiguration.getInstance();
         final ClassLoader classLoader = ConfigurationBasedEJBClientContextSelector.class.getClassLoader();
         final EJBClientContext.Builder builder = new EJBClientContext.Builder();
@@ -67,7 +72,11 @@ final class ConfigurationBasedEJBClientContextSelector {
         } catch (ConfigXMLParseException e) {
             throw new IllegalStateException(e);
         }
-        LegacyPropertiesConfiguration.configure(builder);
+        if (properties != null) {
+            LegacyPropertiesConfiguration.configure(builder, properties);
+        } else {
+            LegacyPropertiesConfiguration.configure(builder);
+        }
         return builder.build();
     }
 
@@ -291,5 +300,9 @@ final class ConfigurationBasedEJBClientContextSelector {
 
     static EJBClientContext get() {
         return configuredContext;
+    }
+
+    static EJBClientContext get(JBossEJBProperties properties) {
+        return loadConfiguration(properties);
     }
 }
