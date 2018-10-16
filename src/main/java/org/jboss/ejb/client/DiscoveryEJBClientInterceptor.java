@@ -46,6 +46,7 @@ import javax.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
 import org.wildfly.common.net.Inet;
@@ -427,7 +428,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Logs.INVOCATION.tracef("Performed first-match discovery(target affinity(node) = %s, destination = %s)", nodeName, location);
         } else if (nodeless == 0) {
             // use the deployment node selector
-            DeploymentNodeSelector selector = context.getClientContext().getDeploymentNodeSelector();
+            DeploymentNodeSelector selector = determineDeploymentNodeSelector(context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY), context.getClientContext());
             nodeName = selector.selectNode(nodes.values().toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
             if (nodeName == null) {
                 throw Logs.INVOCATION.selectorReturnedNull(selector);
@@ -508,11 +509,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
         final EJBLocator<?> locator = context.getLocator();
 
+        final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
         if (nodes.isEmpty()) {
 
             Logs.INVOCATION.tracef("Performed cluster discovery, nodes is empty; trying an initial ");
 
-            final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
             if (namingProvider != null) {
                 NamingEJBClientInterceptor.setNamingDestination(context, namingProvider);
             }
@@ -546,7 +547,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
         Logs.INVOCATION.tracef("Performing cluster discovery (connected nodes = %s, available nodes = %s)", connectedNodes, availableNodes);
 
-        final ClusterNodeSelector selector = clientContext.getClusterNodeSelector();
+        final ClusterNodeSelector selector = determineClusterNodeSelector(namingProvider, clientContext);
         final String selectedNode = selector.selectNode(((ClusterAffinity) locator.getAffinity()).getClusterName(), connectedNodes.toArray(NO_STRINGS), availableNodes.toArray(NO_STRINGS));
         if (selectedNode == null) {
             throw withSuppressed(Logs.MAIN.selectorReturnedNull(selector), problems);
@@ -564,6 +565,34 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return problems;
     }
 
+    private ClusterNodeSelector determineClusterNodeSelector(final NamingProvider namingProvider, final EJBClientContext clientContext) {
+        final Map<String, ?> providerProperties = namingProvider.getProviderEnvironment().getProperties();
+        for(String key: providerProperties.keySet()) {
+            if(key.endsWith(JBossEJBProperties.CLUSTER_PROPERTY_SUFFIX_CLUSTER_SELECTOR) && providerProperties.get(key) != null && providerProperties.get(key) instanceof String) {
+                try {
+                    return (ClusterNodeSelector) Class.forName((String)providerProperties.get(key)).newInstance();
+                } catch (Exception e) {
+                    Logs.INVOCATION.couldNotCreateClusterNodeSelector(e,"").printStackTrace();
+                }
+            } else {
+                continue;
+            }
+        }
+        return clientContext.getClusterNodeSelector();
+    }
+
+    private DeploymentNodeSelector determineDeploymentNodeSelector(final NamingProvider namingProvider, final EJBClientContext clientContext) {
+        final Map<String, ?> providerProperties = namingProvider.getProviderEnvironment().getProperties();
+        if(providerProperties.get(JBossEJBProperties.PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR) != null && providerProperties.get(JBossEJBProperties.PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR) instanceof String) {
+            final String selectorName = (String)providerProperties.get(JBossEJBProperties.PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR);
+            try {
+                return (DeploymentNodeSelector) Class.forName(selectorName).newInstance();
+            } catch (ReflectiveOperationException e) {
+                Logs.INVOCATION.cannotInstantiateDeploymentNodeSelector(selectorName, e).printStackTrace();
+            }
+        }
+        return clientContext.getDeploymentNodeSelector();
+    }
     @SuppressWarnings("Java8CollectionRemoveIf")
     private Map<String, URI> tryFilterToPreferredNodes(AbstractInvocationContext context, Map<String, URI> nodes) {
         Collection<URI> attachment = context.getAttachment(TransactionInterceptor.PREFERRED_DESTINATIONS);

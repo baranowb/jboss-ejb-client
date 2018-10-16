@@ -81,7 +81,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
-    private static final String PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR = "deployment.node.selector";
+    public static final String PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR = "deployment.node.selector";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
@@ -109,6 +109,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_PORT = "port";
     private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String DEFAULT_PROTOCOL = "http-remoting";
+    
+    public static final String CLUSTER_PROPERTY_SUFFIX_CLUSTER_SELECTOR = "clusternode.selector";
 
     private static final boolean expandPasswords;
     private static final String CONFIGURED_PATH_NAME;
@@ -813,7 +815,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 }
                 setClusterName(clusterName);
                 setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-allowed-connected-nodes", 1000L));
-                final String clusterNodeSelectorClassName = getProperty(properties, prefix + "clusternode.selector", null, true);
+                final String clusterNodeSelectorClassName = getProperty(properties, prefix + CLUSTER_PROPERTY_SUFFIX_CLUSTER_SELECTOR, null, true);
                 if (clusterNodeSelectorClassName != null) {
                     setClusterNodeSelectorClassName(clusterNodeSelectorClassName);
                     setClusterNodeSelectorSupplier(() ->
